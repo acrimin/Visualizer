@@ -2,9 +2,9 @@ var fftBands = 64;
 
 var _nBucketCount = 4;
 var timeBetween = 1;
-var count = 30;
+var _aAverageSizesMaxCount = 30;
 var _aAverageSizesHolder = [];
-var _aAverageSizes = [];
+var _aTotalAverageSizes = [];
 
 var nPrevTime = -1 * timeBetween;
 
@@ -22,6 +22,11 @@ function setup() {
 	fft = new p5.FFT(0.3, fftBands);
 	fft.setInput(mic);
 	fftSectionWidth = width / fftBands;
+
+	for (var i = 0; i < _nBucketCount; ++i)
+	{
+		_aTotalAverageSizes[i] = 0;
+	}
 }
 
 function draw() {
@@ -48,6 +53,24 @@ function draw() {
 	{
 		nPrevTime = nTime;
 		calcAverages(spectrum);
+	}
+
+	var aAverages = [];
+	for (var i = 0; i < _nBucketCount; ++i)
+	{
+		aAverages[i] = _aTotalAverageSizes[i] / _aAverageSizesHolder.length;
+	}
+
+	nStartY = 205;
+
+	var nX = 0;
+	for (var i = 0; i < aAverages.length; ++i)
+	{
+		var nX2 = (aAverages[i]+1) * fftSectionWidth;
+		fill(i*255/_nBucketCount, 255, 255);
+		rect(nX, nStartY, nX2-nX, 20);
+
+		nX = nX2;
 	}
 }
 
@@ -99,23 +122,21 @@ function calcAverages(aSpectrum)
 	updateAverages(aBucketIndexes)
 }
 
-function updateAverages(aAverages)
+function updateAverages(aBucketIndexes)
 {
-	_aAverageSizesHolder.push(aAverages);
-	if (_aAverageSizesHolder.length)
+	_aAverageSizesHolder.push(aBucketIndexes);
+
+	for (var i = 0; i < aBucketIndexes.length; ++i)
 	{
-		var aRemovedAverage = _aAverageSizesHolder.shift();
+		_aTotalAverageSizes[i] += aBucketIndexes[i];
 	}
 
-	nStartY = 205;
-
-	var nX = 0;
-	for (var i = 0; i < aAverages.length; ++i)
+	if (_aAverageSizesHolder.length > _aAverageSizesMaxCount)
 	{
-		var nX2 = (aAverages[i]+1) * fftSectionWidth;
-		fill(i*255/_nBucketCount, 255, 255);
-		rect(nX, nStartY, nX2-nX, 20);
-
-		nX = nX2;
+		var aRemovedAverage = _aAverageSizesHolder.shift();
+		for (var i = 0; i < aBucketIndexes.length; ++i)
+		{
+			_aTotalAverageSizes[i] -= aRemovedAverage[i];
+		}
 	}
 }
