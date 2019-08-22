@@ -1,7 +1,7 @@
-var fftBands = 64;
+var fftBands = 32;
 
-var _nBucketCount = 4;
-var timeBetween = 1;
+var _nBucketCount = 8;
+var timeBetween = 1000;
 var _aAverageSizesMaxCount = 30;
 var _aAverageSizesHolder = [];
 var _aTotalAverageSizes = [];
@@ -58,17 +58,22 @@ function draw() {
 	var aAverages = [];
 	for (var i = 0; i < _nBucketCount; ++i)
 	{
-		aAverages[i] = _aTotalAverageSizes[i] / _aAverageSizesHolder.length;
+		aAverages[i] = Math.round(_aTotalAverageSizes[i] / _aAverageSizesHolder.length);
 	}
 
-	nStartY = 205;
+	var aBucketLevels = calcLevels(spectrum, aAverages);
+	console.log(aBucketLevels);
 
+	// display bucket averages
+	nStartY = 205;
 	var nX = 0;
-	for (var i = 0; i < aAverages.length; ++i)
+	for (var i = 0; i < aBucketLevels.length; ++i)
 	{
 		var nX2 = (aAverages[i]+1) * fftSectionWidth;
+		// var height = map(aBucketLevels[i], 0, 1000, 200, 0);
+		var height = aBucketLevels[i];
 		fill(i*255/_nBucketCount, 255, 255);
-		rect(nX, nStartY, nX2-nX, 20);
+		rect(nX, nStartY, nX2-nX, height);
 
 		nX = nX2;
 	}
@@ -139,4 +144,25 @@ function updateAverages(aBucketIndexes)
 			_aTotalAverageSizes[i] -= aRemovedAverage[i];
 		}
 	}
+}
+
+function calcLevels(aSpectrum, aBucketIndexes)
+{
+	var aBucketTotals = [0];
+	var nBucketIndex = 0;
+	var nPrevStart = 0;
+	for (var i = 0; i < aSpectrum.length; ++i)
+	{
+		if (i > aBucketIndexes[nBucketIndex])
+		{
+			aBucketTotals[nBucketIndex] /= (aBucketIndexes[nBucketIndex] - nPrevStart);
+			nPrevStart = aBucketIndexes[nBucketIndex];
+			nBucketIndex++;
+			aBucketTotals[nBucketIndex] = 0;
+		}
+
+		aBucketTotals[nBucketIndex] += aSpectrum[i];
+	}
+
+	return aBucketTotals;
 }
