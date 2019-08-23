@@ -1,7 +1,7 @@
 var objMic;
 var objAmp;
 
-const _nBeatTime = 0;
+const _nBeatTime = 0.2; // TODO: This is up next
 
 const _nMinLevel = 0.03;
 
@@ -20,7 +20,7 @@ var _nAverageTrackResolutionTime = _nAverageTrackTime / _nAverageTrackResolution
 var nPrevTime = -1 * _nAverageTrackResolutionTime;
 
 function setup() {
-	createCanvas(600, 400);
+	createCanvas(600, 800);
 
 	objMic = new p5.AudioIn();
 	objMic.start();
