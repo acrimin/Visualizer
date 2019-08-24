@@ -1,14 +1,18 @@
 var objMic;
 var objAmp;
 
-const _nBeatTime = 0.2; // TODO: This is up next
+const _nMaxBeatsPerMinute = 300;
+// const _nMaxBeatsPerMinute = 220;
+// const _nMaxBeatsPerMinute = 90;
+const _nMaxMillisPerBeat = 60000 / _nMaxBeatsPerMinute;
 
 const _nMinLevel = 0.03;
 
 const _nLevelThreshold = 0.5;
 const _nAverageTrackTime = 60 * 1000;
 // const _nAverageTrackResolutionTime = 1000;
-const _nAverageTrackResolutionCount = 60;
+const _nAverageTrackResolutionCount = 1000;
+
 var _nAverage = 1;
 var _nSumAverage = 1;
 var _aAverageLevelsHolder = [1];
@@ -54,8 +58,25 @@ function draw() {
 		rect(0, 0, 20, 20);
 	}
 
+	var bIsBeat = getBeat(nVolume);
+
+	// getBPM();
+
+	drawGraphBeats(bIsBeat, mouseIsPressed);
 	drawHistory(nVolume);
 	drawLevel(nVolume);
+}
+
+function getBeat(nVolume)
+{
+	if (nVolume > _nAverage * 1.5)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 function drawLevel(nVolume)
@@ -73,6 +94,38 @@ function drawLevel(nVolume)
 	fill(0,0,255);
 	var value = map(_nAverage, 0, 1, 0, width);
 	rect(0, 260, value, 20);
+}
+
+var mouseHistory = [];
+var beatHistory = [];
+function drawGraphBeats(beat, mouseBeat)
+{
+	beatHistory.push(beat);
+	mouseHistory.push(mouseBeat);
+
+	var y1 = 0;
+	var y2 = 200;
+	for (var i = 0; i < beatHistory.length; i++)
+	{
+		if (mouseHistory[i])
+		{
+			stroke(255,128,0);
+			line(i,y1,i,y2);
+		}
+
+		if (beatHistory[i])
+		{
+			stroke(255,255,50);
+			line(i,y1,i,y2);
+		}
+
+	}
+
+	if (beatHistory.length > width)
+	{
+		beatHistory.splice(0, 1);
+		mouseHistory.splice(0, 1);
+	}
 }
 
 var volHistory = [];
