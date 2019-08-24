@@ -5,6 +5,11 @@ const _nMaxBeatsPerMinute = 300;
 // const _nMaxBeatsPerMinute = 220;
 // const _nMaxBeatsPerMinute = 90;
 const _nMaxMillisPerBeat = 60000 / _nMaxBeatsPerMinute;
+var nPrevBeatTime = -1 * _nMaxMillisPerBeat;
+
+const _nBPMTrackTime = 10 * 1000;
+var _nBeatCount = 0;
+var nPrevBPMTime = 0;
 
 const _nMinLevel = 0.03;
 
@@ -35,6 +40,7 @@ function setup() {
 
 function draw() {
 	background(0);
+	var nTime = millis();
 
 	var nVolume = objAmp.getLevel();
 
@@ -44,7 +50,6 @@ function draw() {
 		fill(0,255,0);
 		rect(0, 0, 20, 20);
 
-		var nTime = millis();
 		if (nTime > nPrevTime + _nAverageTrackResolutionTime || nPrevTime === -1)
 		{
 			nPrevTime = nTime;
@@ -58,9 +63,15 @@ function draw() {
 		rect(0, 0, 20, 20);
 	}
 
-	var bIsBeat = getBeat(nVolume);
+	var bIsLoudEnough = getBeat(nVolume);
+	var bIsBeat = false;
+	if (bIsLoudEnough && nTime > nPrevBeatTime + _nMaxMillisPerBeat)
+	{
+		nPrevBeatTime = nTime;
+		bIsBeat = true;
+	}
 
-	// getBPM();
+	getBPM(bIsBeat);
 
 	drawGraphBeats(bIsBeat, mouseIsPressed);
 	drawHistory(nVolume);
@@ -76,6 +87,23 @@ function getBeat(nVolume)
 	else
 	{
 		return false;
+	}
+}
+
+function getBPM(bIsBeat)
+{
+	_nBeatCount += bIsBeat ? 1 : 0;
+	
+	var nTime = millis()
+	if (nTime > nPrevBPMTime + _nBPMTrackTime)
+	{
+
+		var nBPM = _nBeatCount / (nTime - nPrevBPMTime);
+		nBPM *= 60000;
+		console.log(nBPM);
+
+		_nBeatCount = 0;
+		nPrevBPMTime = nTime;
 	}
 }
 
