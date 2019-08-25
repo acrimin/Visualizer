@@ -2,8 +2,10 @@ var objMic;
 var objAmp;
 
 const _nMaxBeatsPerMinute = 300;
-// const _nMaxBeatsPerMinute = 220;
-// const _nMaxBeatsPerMinute = 90;
+
+const _nThresholdMaxBeatsPerMinute = 220;
+const _nThresholdMinBeatsPerMinute = 90;
+
 const _nMaxMillisPerBeat = 60000 / _nMaxBeatsPerMinute;
 var nPrevBeatTime = -1 * _nMaxMillisPerBeat;
 
@@ -11,22 +13,24 @@ const _nBPMTrackTime = 10 * 1000;
 var _nBeatCount = 0;
 var nPrevBPMTime = 0;
 
+
+const _nBeatAdjustDelta = 0.1;
+var _nBeatMultiplierValue = 1.5;
+
 const _nMinLevel = 0.03;
 
-const _nLevelThreshold = 0.5;
-const _nAverageTrackTime = 60 * 1000;
-// const _nAverageTrackResolutionTime = 1000;
+const _nAverageTrackTime = 30 * 1000;
 const _nAverageTrackResolutionCount = 1000;
+const _nAverageTrackResolutionTime = _nAverageTrackTime / _nAverageTrackResolutionCount;
 
 var _nAverage = 1;
 var _nSumAverage = 1;
 var _aAverageLevelsHolder = [1];
 
-// var _nAverageTrackTime = _nAverageTrackResolutionTime * _nAverageTrackResolutionCount;
-var _nAverageTrackResolutionTime = _nAverageTrackTime / _nAverageTrackResolutionCount;
-// var _nAverageTrackResolutionCount = _nAverageTrackTime / _nAverageTrackResolutionTime;
 
 var nPrevTime = -1 * _nAverageTrackResolutionTime;
+
+var nCurrentColor = 0;
 
 function setup() {
 	createCanvas(600, 800);
@@ -40,6 +44,7 @@ function setup() {
 
 function draw() {
 	background(0);
+
 	var nTime = millis();
 
 	var nVolume = objAmp.getLevel();
@@ -73,6 +78,16 @@ function draw() {
 
 	getBPM(bIsBeat);
 
+	// draw Beats
+	if (bIsBeat)
+	{
+		nCurrentColor += 10;
+		nCurrentColor %= 360;
+	}
+
+	// colorMode(HSB);
+	// background(nCurrentColor, 80, 80);
+
 	drawGraphBeats(bIsBeat, mouseIsPressed);
 	drawHistory(nVolume);
 	drawLevel(nVolume);
@@ -80,7 +95,7 @@ function draw() {
 
 function getBeat(nVolume)
 {
-	if (nVolume > _nAverage * 1.5)
+	if (nVolume > _nAverage * _nBeatMultiplierValue)
 	{
 		return true;
 	}
@@ -100,10 +115,21 @@ function getBPM(bIsBeat)
 
 		var nBPM = _nBeatCount / (nTime - nPrevBPMTime);
 		nBPM *= 60000;
-		console.log(nBPM);
+		console.log("BPM: " + nBPM);
 
 		_nBeatCount = 0;
 		nPrevBPMTime = nTime;
+
+		if (nBPM < _nThresholdMinBeatsPerMinute)
+		{
+			_nBeatMultiplierValue = max(1, _nBeatMultiplierValue - _nBeatAdjustDelta);
+		}
+		else if (nBPM > _nThresholdMaxBeatsPerMinute)
+		{
+			_nBeatMultiplierValue = _nBeatMultiplierValue + _nBeatAdjustDelta;
+		}
+
+		console.log("Multiplier: " + _nBeatMultiplierValue);
 	}
 }
 
@@ -116,7 +142,7 @@ function drawLevel(nVolume)
 	rect(0, 200, value, 20);
 
 	fill(255,0,0);
-	var value = map(nVolume, 0, _nAverage / _nLevelThreshold, 0, width);
+	var value = map(nVolume, 0, _nAverage / 0.5, 0, width);
 	rect(0, 230, value, 20);
 
 	fill(0,0,255);
@@ -175,7 +201,7 @@ function drawHistory(volume)
 	beginShape();
 	for (var i = 0; i < volHistory.length; i++)
 	{
-		var y = map(volHistory[i], 0, _nAverage / _nLevelThreshold, 200, 0);
+		var y = map(volHistory[i], 0, _nAverage / 0.5, 200, 0);
 		vertex(i, y);
 	}
 	endShape();
