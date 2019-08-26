@@ -1,9 +1,18 @@
+/*
+Thoughts:
+	Calculate BPM at several different Multiplier levels
+	Subscribe to different bpm levels
+	track similarly to volume, length of time to check (huge amounts of data when tracking every single update)
+	hash map of different bpms subscribe to multiple?
+*/
+
 var objMic;
 var objAmp;
+var objAverageVolume;
 
 const _nMaxBeatsPerMinute = 300;
 
-const _nThresholdMaxBeatsPerMinute = 220;
+const _nThresholdMaxBeatsPerMinute = 180;
 const _nThresholdMinBeatsPerMinute = 90;
 
 const _nMaxMillisPerBeat = 60000 / _nMaxBeatsPerMinute;
@@ -14,32 +23,49 @@ var _nBeatCount = 0;
 var nPrevBPMTime = 0;
 
 
-const _nBeatAdjustDelta = 0.1;
+const _nBeatAdjustDelta = 0.05;
 var _nBeatMultiplierValue = 1.5;
 
 const _nMinLevel = 0.03;
 
-const _nAverageTrackTime = 30 * 1000;
-const _nAverageTrackResolutionCount = 1000;
-const _nAverageTrackResolutionTime = _nAverageTrackTime / _nAverageTrackResolutionCount;
-
-var _nAverage = 1;
-var _nSumAverage = 1;
-var _aAverageLevelsHolder = [1];
-
-
-var nPrevTime = -1 * _nAverageTrackResolutionTime;
-
 var nCurrentColor = 0;
+
+
+// Local Song
+var song;
+var button;
+
+function toggleSong()
+{
+	console.log("Hit");
+	if (song.isPlaying())
+	{
+		song.pause();
+	}
+	else
+	{
+		song.play();
+	}
+}
+
+function preload() 
+{
+	song = loadSound("song.mp3");
+}
 
 function setup() {
 	createCanvas(600, 800);
 
-	objMic = new p5.AudioIn();
-	objMic.start();
+	objAverageVolume = new VolumeAverager();
+
+	button = createButton("toggle");
+	button.mousePressed(toggleSong);
+
+	// objMic = new p5.AudioIn();
+	// objMic.start();
 
 	objAmp = new p5.Amplitude();
-	objAmp.setInput(objMic);
+	// objAmp.setInput(objMic);
 }
 
 function draw() {
@@ -49,24 +75,7 @@ function draw() {
 
 	var nVolume = objAmp.getLevel();
 
-	if (nVolume > _nMinLevel)
-	{
-		stroke(255);
-		fill(0,255,0);
-		rect(0, 0, 20, 20);
-
-		if (nTime > nPrevTime + _nAverageTrackResolutionTime || nPrevTime === -1)
-		{
-			nPrevTime = nTime;
-			calcAverages(nVolume);
-		}
-	}
-	else
-	{
-		stroke(255);
-		fill(255,0,0);
-		rect(0, 0, 20, 20);
-	}
+	objAverageVolume.Update(nVolume, nTime);
 
 	var bIsLoudEnough = getBeat(nVolume);
 	var bIsBeat = false;
@@ -81,12 +90,15 @@ function draw() {
 	// draw Beats
 	if (bIsBeat)
 	{
-		nCurrentColor += 10;
+		nCurrentColor += 35;
 		nCurrentColor %= 360;
 	}
 
-	// colorMode(HSB);
-	// background(nCurrentColor, 80, 80);
+	noStroke();
+	colorMode(HSB);
+	fill(nCurrentColor, 80, 80);
+	rect(0, 300, 200, 200);
+	colorMode(RGB);
 
 	drawGraphBeats(bIsBeat, mouseIsPressed);
 	drawHistory(nVolume);
@@ -95,7 +107,7 @@ function draw() {
 
 function getBeat(nVolume)
 {
-	if (nVolume > _nAverage * _nBeatMultiplierValue)
+	if (nVolume > objAverageVolume.getAverage() * _nBeatMultiplierValue)
 	{
 		return true;
 	}
@@ -142,11 +154,11 @@ function drawLevel(nVolume)
 	rect(0, 200, value, 20);
 
 	fill(255,0,0);
-	var value = map(nVolume, 0, _nAverage / 0.5, 0, width);
+	var value = map(nVolume, 0, objAverageVolume.getAverage() / 0.5, 0, width);
 	rect(0, 230, value, 20);
 
 	fill(0,0,255);
-	var value = map(_nAverage, 0, 1, 0, width);
+	var value = map(objAverageVolume.getAverage(), 0, 1, 0, width);
 	rect(0, 260, value, 20);
 }
 
@@ -201,7 +213,7 @@ function drawHistory(volume)
 	beginShape();
 	for (var i = 0; i < volHistory.length; i++)
 	{
-		var y = map(volHistory[i], 0, _nAverage / 0.5, 200, 0);
+		var y = map(volHistory[i], 0, objAverageVolume.getAverage() / 0.5, 200, 0);
 		vertex(i, y);
 	}
 	endShape();
@@ -212,16 +224,51 @@ function drawHistory(volume)
 	}
 }
 
-function calcAverages(nVolume)
-{
-	_aAverageLevelsHolder.push(nVolume);
-	_nSumAverage += nVolume;
 
-	if (_aAverageLevelsHolder.length > _nAverageTrackResolutionCount)
+function VolumeAverager()
+{
+	const _nTrackTime = 30 * 1000;
+	const _nDataPoints = 1000;
+	const _nDataDeltaTime = _nTrackTime / _nDataPoints;
+	const _nMinAverageVolume = 0.03;
+
+	var _aVolumeHistory = [1];
+	var _nAverage = 1;
+	var _nSumAverage = 1;
+
+	nPrevTime = 0;
+
+	this.Update = function(nVolume, nTime)
 	{
-		var nRemoved = _aAverageLevelsHolder.shift();
-		_nSumAverage -= nRemoved;
+		if (nVolume > _nMinAverageVolume && nTime > nPrevTime + _nDataDeltaTime)
+		{
+			nPrevTime = nTime;
+			this.CalcAverage(nVolume);
+		}
 	}
 
-	_nAverage = _nSumAverage / _aAverageLevelsHolder.length;
-}
+	this.CalcAverage = function(nVolume)
+	{
+		_aVolumeHistory.push(nVolume);
+		_nSumAverage += nVolume;
+
+		if (_aVolumeHistory.length > _nDataPoints)
+		{
+			var nRemoved = _aVolumeHistory.shift();
+			_nSumAverage -= nRemoved;
+		}
+
+		_nAverage = _nSumAverage / _aVolumeHistory.length;
+	}
+
+	this.getAverage = function()
+	{
+		return _nAverage;
+	}
+
+	this.Reset = function()
+	{
+		_aVolumeHistory = [];
+		_nAverage = 0;
+	}
+};
