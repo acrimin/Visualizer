@@ -22,11 +22,8 @@ const _nBPMTrackTime = 10 * 1000;
 var _nBeatCount = 0;
 var nPrevBPMTime = 0;
 
-
 const _nBeatAdjustDelta = 0.05;
 var _nBeatMultiplierValue = 1.5;
-
-const _nMinLevel = 0.03;
 
 var nCurrentColor = 0;
 
@@ -50,22 +47,22 @@ function toggleSong()
 
 function preload() 
 {
-	song = loadSound("song.mp3");
+	// song = loadSound("song.mp3");
 }
 
 function setup() {
 	createCanvas(600, 800);
 
-	objAverageVolume = new VolumeAverager();
+	objAverageVolume = new RollingAverage(60000,100);
 
-	button = createButton("toggle");
-	button.mousePressed(toggleSong);
+	// button = createButton("toggle");
+	// button.mousePressed(toggleSong);
 
-	// objMic = new p5.AudioIn();
-	// objMic.start();
+	objMic = new p5.AudioIn();
+	objMic.start();
 
 	objAmp = new p5.Amplitude();
-	// objAmp.setInput(objMic);
+	objAmp.setInput(objMic);
 }
 
 function draw() {
@@ -75,7 +72,10 @@ function draw() {
 
 	var nVolume = objAmp.getLevel();
 
-	objAverageVolume.Update(nVolume, nTime);
+	if (nVolume > 0.03)
+	{
+		objAverageVolume.update(nVolume,nTime);
+	}
 
 	var bIsLoudEnough = getBeat(nVolume);
 	var bIsBeat = false;
@@ -100,7 +100,7 @@ function draw() {
 	rect(0, 300, 200, 200);
 	colorMode(RGB);
 
-	drawGraphBeats(bIsBeat, mouseIsPressed);
+	drawGraphBeats(bIsBeat);
 	drawHistory(nVolume);
 	drawLevel(nVolume);
 }
@@ -162,23 +162,15 @@ function drawLevel(nVolume)
 	rect(0, 260, value, 20);
 }
 
-var mouseHistory = [];
 var beatHistory = [];
-function drawGraphBeats(beat, mouseBeat)
+function drawGraphBeats(beat)
 {
 	beatHistory.push(beat);
-	mouseHistory.push(mouseBeat);
 
 	var y1 = 0;
 	var y2 = 200;
 	for (var i = 0; i < beatHistory.length; i++)
 	{
-		if (mouseHistory[i])
-		{
-			stroke(255,128,0);
-			line(i,y1,i,y2);
-		}
-
 		if (beatHistory[i])
 		{
 			stroke(255,255,50);
@@ -190,7 +182,6 @@ function drawGraphBeats(beat, mouseBeat)
 	if (beatHistory.length > width)
 	{
 		beatHistory.splice(0, 1);
-		mouseHistory.splice(0, 1);
 	}
 }
 
@@ -222,53 +213,8 @@ function drawHistory(volume)
 	{
 		volHistory.splice(0, 1);
 	}
+
+	stroke(255,255,50);
+	var y = map(objAverageVolume.getAverage(), 0, 1, 200, 0);
+	line(0,y,width,y);
 }
-
-
-function VolumeAverager()
-{
-	const _nTrackTime = 30 * 1000;
-	const _nDataPoints = 1000;
-	const _nDataDeltaTime = _nTrackTime / _nDataPoints;
-	const _nMinAverageVolume = 0.03;
-
-	var _aVolumeHistory = [1];
-	var _nAverage = 1;
-	var _nSumAverage = 1;
-
-	nPrevTime = 0;
-
-	this.Update = function(nVolume, nTime)
-	{
-		if (nVolume > _nMinAverageVolume && nTime > nPrevTime + _nDataDeltaTime)
-		{
-			nPrevTime = nTime;
-			this.CalcAverage(nVolume);
-		}
-	}
-
-	this.CalcAverage = function(nVolume)
-	{
-		_aVolumeHistory.push(nVolume);
-		_nSumAverage += nVolume;
-
-		if (_aVolumeHistory.length > _nDataPoints)
-		{
-			var nRemoved = _aVolumeHistory.shift();
-			_nSumAverage -= nRemoved;
-		}
-
-		_nAverage = _nSumAverage / _aVolumeHistory.length;
-	}
-
-	this.getAverage = function()
-	{
-		return _nAverage;
-	}
-
-	this.Reset = function()
-	{
-		_aVolumeHistory = [];
-		_nAverage = 0;
-	}
-};
