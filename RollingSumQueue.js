@@ -1,7 +1,7 @@
 function TimedSumDataPoint(nValue,nStartTime)
 {
 	var nStartTime = nStartTime;
-	var nEndTime = 0;
+	var nEndTime = nStartTime;
 	var nDataPoints = 1;
 
 	var nData = nValue;
@@ -63,13 +63,13 @@ RollingSumQueue.prototype.update = function(nValue, nTime)
 		this._objCurrentDataPoint = new TimedSumDataPoint(nValue, nTime);
 		this._aData.push(this._objCurrentDataPoint);
 	}
-	else if (this._objCurrentDataPoint.getElapsedTime() > this._nTimePerPoint)
+	else if ((nTime - this._objCurrentDataPoint.getStartTime()) > this._nTimePerPoint)
 	{
 		if (this._aData.length > this._nMaxDataPoints)
 		{
-			this._nSum -= this._objCurrentDataPoint.getValue();
-			this._nTotalPoints -= this._objCurrentDataPoint.getPoints();
-			this._aData.shift();
+			var objRemoved = this._aData.shift();
+			this._nSum -= objRemoved.getValue();
+			this._nTotalPoints -= objRemoved.getPoints();
 		}
 
 		this._objCurrentDataPoint = new TimedSumDataPoint(nValue, nTime);
@@ -93,10 +93,11 @@ RollingSumQueue.prototype.getPoints = function()
 
 RollingSumQueue.prototype.getTime = function()
 {
-	return this._aData[this._aData.length-1].getStartTime() - this._aData[0].getEndTime();
+	return this._aData[this._aData.length-1].getEndTime() - this._aData[0].getStartTime();
 }
 
-function RollingAverage(nTrackTime, nDataPoints)
+
+function RollingPointAverage(nTrackTime, nDataPoints)
 {
 	RollingSumQueue.call(this,nTrackTime,nDataPoints);
 
@@ -117,10 +118,40 @@ function RollingAverage(nTrackTime, nDataPoints)
 		}
 		else
 		{
-			_nAverage = this._nSum / this._nTotalPoints;
+			_nAverage = this._nSum / this.getPoints();
 			return _nAverage;
 		}
 	}
 };
 
-RollingAverage.prototype = Object.create(RollingSumQueue.prototype);
+RollingPointAverage.prototype = Object.create(RollingSumQueue.prototype);
+
+
+function RollingTimeAverage(nTrackTime, nDataPoints)
+{
+	RollingSumQueue.call(this,nTrackTime,nDataPoints);
+
+	var _nAverageUpToDate = true;
+	var _nAverage = 1;
+	
+	this.update = function(nValue, nTime)
+	{
+		_nAverageUpToDate = false;
+		RollingSumQueue.prototype.update.call(this, nValue, nTime);
+	}
+	
+	this.getAverage = function()
+	{
+		if (_nAverageUpToDate)
+		{
+			return _nAverage;			
+		}
+		else
+		{
+			_nAverage = this._nSum / this.getTime();
+			return _nAverage;
+		}
+	}
+};
+
+RollingTimeAverage.prototype = Object.create(RollingSumQueue.prototype);

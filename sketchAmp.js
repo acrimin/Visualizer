@@ -9,6 +9,7 @@ Thoughts:
 var objMic;
 var objAmp;
 var objAverageVolume;
+var objAverageBeats;
 
 const _nMaxBeatsPerMinute = 300;
 
@@ -19,14 +20,12 @@ const _nMaxMillisPerBeat = 60000 / _nMaxBeatsPerMinute;
 var nPrevBeatTime = -1 * _nMaxMillisPerBeat;
 
 const _nBPMTrackTime = 10 * 1000;
-var _nBeatCount = 0;
 var nPrevBPMTime = 0;
 
 const _nBeatAdjustDelta = 0.05;
 var _nBeatMultiplierValue = 1.5;
 
 var nCurrentColor = 0;
-
 
 // Local Song
 var song;
@@ -47,22 +46,23 @@ function toggleSong()
 
 function preload() 
 {
-	// song = loadSound("song.mp3");
+	song = loadSound("song.mp3");
 }
 
 function setup() {
 	createCanvas(600, 800);
 
-	objAverageVolume = new RollingAverage(60000,100);
+	objAverageVolume = new RollingPointAverage(60000,100);
+	objAverageBeats = new RollingTimeAverage(20000,100);
 
-	// button = createButton("toggle");
-	// button.mousePressed(toggleSong);
+	button = createButton("toggle");
+	button.mousePressed(toggleSong);
 
-	objMic = new p5.AudioIn();
-	objMic.start();
+	// objMic = new p5.AudioIn();
+	// objMic.start();
 
 	objAmp = new p5.Amplitude();
-	objAmp.setInput(objMic);
+	objAmp.setInput();
 }
 
 function draw() {
@@ -86,7 +86,8 @@ function draw() {
 	}
 
 	getBPM(bIsBeat);
-
+	objAverageBeats.update(bIsBeat ? 1 : 0, nTime);
+	
 	// draw Beats
 	if (bIsBeat)
 	{
@@ -119,17 +120,15 @@ function getBeat(nVolume)
 
 function getBPM(bIsBeat)
 {
-	_nBeatCount += bIsBeat ? 1 : 0;
 	
 	var nTime = millis()
 	if (nTime > nPrevBPMTime + _nBPMTrackTime)
 	{
 
-		var nBPM = _nBeatCount / (nTime - nPrevBPMTime);
+		var nBPM = objAverageBeats.getAverage();
 		nBPM *= 60000;
 		console.log("BPM: " + nBPM);
 
-		_nBeatCount = 0;
 		nPrevBPMTime = nTime;
 
 		if (nBPM < _nThresholdMinBeatsPerMinute)
