@@ -40,8 +40,13 @@ function TimedSumDataPoint(nValue,nStartTime)
 	}
 };
 
-function RollingSumQueue(nTrackTime, nDataPoints)
+function RollingAverageQueue(nTrackTime, nDataPoints, opt_bCalcAverageType)
 {
+	this.calcAverageType = opt_bCalcAverageType === true;
+
+	this._nAverage = 0;
+	this._nAverageUpToDate = false;
+
 	this._nTrackTime = nTrackTime;
 	this._nMaxDataPoints = nDataPoints;
 	this._nTimePerPoint = nTrackTime / nDataPoints;
@@ -53,8 +58,10 @@ function RollingSumQueue(nTrackTime, nDataPoints)
 	this._nTotalPoints = 0;
 };
 
-RollingSumQueue.prototype.update = function(nValue, nTime)
+RollingAverageQueue.prototype.update = function(nValue, nTime)
 {
+	this._nAverageUpToDate = false;
+
 	this._nSum += nValue;
 	this._nTotalPoints++;
 	
@@ -81,77 +88,60 @@ RollingSumQueue.prototype.update = function(nValue, nTime)
 	}
 }
 
-RollingSumQueue.prototype.getSum = function()
+RollingAverageQueue.prototype.getSum = function()
 {
 	return this._nSum;
 }
 
-RollingSumQueue.prototype.getPoints = function()
+RollingAverageQueue.prototype.getPoints = function()
 {
 	return this._nTotalPoints;
 }
 
-RollingSumQueue.prototype.getTime = function()
+RollingAverageQueue.prototype.getTime = function()
 {
 	return this._aData[this._aData.length-1].getEndTime() - this._aData[0].getStartTime();
+}
+
+RollingAverageQueue.prototype.getAverage = function()
+{
+	if (this._nAverageUpToDate)
+	{
+		return this._nAverage;			
+	}
+	else
+	{
+		this._nAverage = this.calculateAverage();
+		this._nAverageUpToDate = true;
+		return this._nAverage;
+	}
+}
+
+// Custom "overridden" function
+RollingAverageQueue.prototype.calculateAverage = function()
+{
+	if (this.calcAverageType)
+	{
+		return this._nSum / this.getPoints();
+	}
+	else
+	{
+		return this._nSum / this.getTime();
+	}
 }
 
 
 function RollingPointAverage(nTrackTime, nDataPoints)
 {
-	RollingSumQueue.call(this,nTrackTime,nDataPoints);
-
-	var _nAverageUpToDate = true;
-	var _nAverage = 1;
-	
-	this.update = function(nValue, nTime)
-	{
-		_nAverageUpToDate = false;
-		RollingSumQueue.prototype.update.call(this, nValue, nTime);
-	}
-	
-	this.getAverage = function()
-	{
-		if (_nAverageUpToDate)
-		{
-			return _nAverage;			
-		}
-		else
-		{
-			_nAverage = this._nSum / this.getPoints();
-			return _nAverage;
-		}
-	}
+	RollingAverageQueue.call(this,nTrackTime,nDataPoints,true);
 };
 
-RollingPointAverage.prototype = Object.create(RollingSumQueue.prototype);
+RollingPointAverage.prototype = Object.create(RollingAverageQueue.prototype);
 
 
 function RollingTimeAverage(nTrackTime, nDataPoints)
 {
-	RollingSumQueue.call(this,nTrackTime,nDataPoints);
-
-	var _nAverageUpToDate = true;
-	var _nAverage = 1;
-	
-	this.update = function(nValue, nTime)
-	{
-		_nAverageUpToDate = false;
-		RollingSumQueue.prototype.update.call(this, nValue, nTime);
-	}
-	
-	this.getAverage = function()
-	{
-		if (_nAverageUpToDate)
-		{
-			return _nAverage;			
-		}
-		else
-		{
-			_nAverage = this._nSum / this.getTime();
-			return _nAverage;
-		}
-	}
+	RollingAverageQueue.call(this,nTrackTime,nDataPoints,false);
 };
 
-RollingTimeAverage.prototype = Object.create(RollingSumQueue.prototype);
+RollingTimeAverage.prototype = Object.create(RollingAverageQueue.prototype);

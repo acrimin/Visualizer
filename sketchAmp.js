@@ -33,7 +33,6 @@ var button;
 
 function toggleSong()
 {
-	console.log("Hit");
 	if (song.isPlaying())
 	{
 		song.pause();
@@ -53,7 +52,7 @@ function setup() {
 	createCanvas(600, 800);
 
 	objAverageVolume = new RollingPointAverage(60000,100);
-	objAverageBeats = new RollingTimeAverage(20000,100);
+	objAverageBeats = new RollingTimeAverage(20000,20);
 
 	button = createButton("toggle");
 	button.mousePressed(toggleSong);
